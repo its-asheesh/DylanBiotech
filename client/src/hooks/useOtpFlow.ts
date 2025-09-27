@@ -21,19 +21,17 @@ export const useOtpFlow = (onSuccess?: () => void) => {
   });
 
   const verifyOtp = useMutation({
-    // ✅ Updated type: allow optional password
     mutationFn: async ({ email, otp, password }: { email: string; otp: string; password?: string }) => {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // ✅ Include password in request
         body: JSON.stringify({ email, otp, password }),
       });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.message || "Invalid OTP");
       }
-      return res.json();
+      return res.json(); // ✅ This returns { _id, name, email, role, token }
     },
     onSuccess: () => {
       if (onSuccess) onSuccess();
@@ -41,16 +39,15 @@ export const useOtpFlow = (onSuccess?: () => void) => {
     },
   });
 
-  // Resend OTP (same as sendOtp)
-  const resendOtp = sendOtp.mutateAsync;
-
   return {
     sendOtp: sendOtp.mutateAsync,
-    resendOtp,
+    resendOtp: sendOtp.mutateAsync,
     isSendingOtp: sendOtp.isPending,
     sendOtpError: sendOtp.error,
 
-    verifyOtp: verifyOtp.mutate, // ← You're using .mutate — that's fine
+    // ✅ EXPOSE THE ASYNC VERSION THAT RETURNS DATA
+    verifyOtpAsync: verifyOtp.mutateAsync, // ← ADD THIS
+    verifyOtp: verifyOtp.mutate, // keep for side-effect usage if needed
     isVerifyingOtp: verifyOtp.isPending,
     verifyOtpError: verifyOtp.error,
   };

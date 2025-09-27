@@ -92,7 +92,7 @@ const RegisterForm: React.FC = () => {
     sendOtp,
     isSendingOtp,
     sendOtpError,
-    verifyOtp,
+    verifyOtpAsync,
     isVerifyingOtp,
     verifyOtpError,
   } = useOtpFlow();
@@ -148,46 +148,41 @@ const RegisterForm: React.FC = () => {
 
   // ✅ STEP 2: After OTP verified → Register user
   const handleVerifyOtp = async () => {
-    if (!formData) return;
+  if (!formData) return;
 
-    try {
-      // Verify OTP first
-      await verifyOtp({
-        email: formData.email,
-        otp,
-        password: formData.password,
-      });
+  try {
+    // ✅ NOW THIS RETURNS THE USER DATA + TOKEN!
+    const userData = await verifyOtpAsync({
+      email: formData.email,
+      otp,
+      password: formData.password,
+    });
 
-      // ✅ Register user
-      const response = await axios.post<RegisterResponse>(
-        "/api/users/register",
-        {
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-        }
-      );
+    console.log("✅ Registration successful:", userData); // DEBUG
 
-      const { _id, name, email, role, token } = response.data;
-      const userData = { _id, name, email, role };
+    // Save to context + localStorage
+    setUser({
+      _id: userData._id,
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+    });
+    setToken(userData.token);
+    localStorage.setItem("token", userData.token);
+    localStorage.setItem("user", JSON.stringify({
+      _id: userData._id,
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+    }));
 
-      // ✅ Set in context + localStorage — redirect handled by useEffect below
-      setUser(userData);
-      setToken(token);
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      // ❌ DO NOT NAVIGATE HERE — wait for context to update
-    } catch (error: any) {
-      if (error.response?.data?.message === "Invalid or expired OTP") {
-        setSubmitError("Invalid or expired OTP. Please try again.");
-      } else {
-        setSubmitError("Failed to create account. Please try again.");
-      }
-      console.error("Registration Error:", error);
-    }
-  };
-
+    // Redirect will happen via useEffect when user/token are set
+  } catch (error: any) {
+    const msg = error.message || "Failed to create account";
+    setSubmitError(msg);
+    console.error("Registration Error:", error);
+  }
+};
   // ✅ Redirect AFTER context updates (user & token are set)
   useEffect(() => {
     if (user && token) {
