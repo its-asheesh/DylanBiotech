@@ -7,6 +7,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password?: string;
+  phone?: string; // ← Add this
   role: 'user' | 'admin';
   createdAt: Date;
   matchPassword(enteredPassword: string): Promise<boolean>;
@@ -14,9 +15,10 @@ export interface IUser extends Document {
 
 const userSchema = new Schema<IUser>({
   name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String, required: false, unique: true },
   password: { type: String, required: false },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  phone: { type: String, unique: true, sparse: true },
   createdAt: { type: Date, default: Date.now },
 });
 

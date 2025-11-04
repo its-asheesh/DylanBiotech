@@ -10,6 +10,8 @@ import CreateCategory from '../pages/CreateCategory';
 import EditCategory from '../pages/EditCategory';
 import Admin from '../pages/Admin';
 import Navigation from '../components/layout/Navigation';
+import MobileAuth from '@/pages/MobileAuth';
+import ProfilePage from '@/pages/ProfilePage';
 
 // Protected Route component
 interface ProtectedRouteProps {
@@ -43,6 +45,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/signup-mobile" element={<MobileAuth/>}/>
         
         {/* Category Routes */}
         <Route path="/categories" element={<Categories />} />
@@ -63,7 +66,16 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } 
         />
-        
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Admin Routes */}
         <Route 
           path="/admin" 

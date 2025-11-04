@@ -1,20 +1,16 @@
 // src/components/auth/RegisterForm.tsx
 "use client";
-
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
-
 // ✅ Reusable Hooks
 import { useGoogleAuthHandler } from "@/hooks/useGoogleAuthHandler";
 import { useOtpFlow } from "@/hooks/useOtpFlow";
-import { useAuth } from "@/context/AuthContext"; // ← IMPORTANT
+import { useAuth } from "@/context/AuthContext";
 import { useAuthForm } from "@/hooks/useAuthForm";
-
 // ✅ Reusable Components
 import { AuthCardLayout } from "./AuthCardLayout";
 import { OtpForm } from "./OtpForm";
@@ -23,7 +19,6 @@ import { AuthErrorAlert } from "./AuthErrorAlert";
 import { PasswordField } from "./PasswordField";
 import { AuthMethodDivider } from "./AuthMethodDivider";
 import { AuthRedirectLink } from "./AuthRedirectLink";
-
 // ✅ MUI
 import {
   Box,
@@ -34,18 +29,9 @@ import {
   LinearProgress,
   CircularProgress,
 } from "@mui/material";
-import { Person, Email, PersonAdd } from "@mui/icons-material";
+import { Person, Email, PersonAdd, PhoneAndroid } from "@mui/icons-material";
 
-// Define API response shape
-interface RegisterResponse {
-  _id: string;
-  name: string;
-  email: string;
-  role: "user" | "admin";
-  token: string;
-}
-
-// ✅ Zod Schema
+// ✅ Zod Schema (unchanged)
 const registerSchema = z
   .object({
     name: z.string().min(1, "Full name is required"),
@@ -68,26 +54,18 @@ const registerSchema = z
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-// ✅ Main Component
 const RegisterForm: React.FC = () => {
   useAuthForm();
-
+  const [step, setStep] = useState<1 | 2>(1); // 👈 NEW: Multi-step state
   const [isOtpMode, setIsOtpMode] = useState(false);
   const [otp, setOtp] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [formData, setFormData] = useState<RegisterFormData | null>(null);
-
   const navigate = useNavigate();
   const isMounted = useRef(true);
 
-  // ✅ Get auth context — critical for auto-login
   const { user, token, setUser, setToken } = useAuth();
-
-  // ✅ Google Auth
-  const { handleGoogleAuth, isPending: isGooglePending } =
-    useGoogleAuthHandler();
-
-  // ✅ OTP Flow
+  const { handleGoogleAuth, isPending: isGooglePending } = useGoogleAuthHandler();
   const {
     sendOtp,
     isSendingOtp,
@@ -97,12 +75,12 @@ const RegisterForm: React.FC = () => {
     verifyOtpError,
   } = useOtpFlow();
 
-  // ✅ Form
   const {
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isValid },
     watch,
+    trigger,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -111,10 +89,10 @@ const RegisterForm: React.FC = () => {
       password: "",
       confirmPassword: "",
     },
+    mode: "onChange",
   });
 
   const password = watch("password");
-
   const getPasswordStrength = (password: string) => {
     let strength = 0;
     if (password.length >= 8) strength += 25;
@@ -123,9 +101,7 @@ const RegisterForm: React.FC = () => {
     if (/[^A-Za-z0-9]/.test(password)) strength += 25;
     return strength;
   };
-
   const passwordStrength = getPasswordStrength(password);
-
   const getStrengthColor = (strength: number) => {
     if (strength < 25) return "error";
     if (strength < 50) return "warning";
@@ -133,7 +109,15 @@ const RegisterForm: React.FC = () => {
     return "success";
   };
 
-  // ✅ STEP 1: On Submit → Send OTP
+  // ✅ STEP 1: On "Continue" → Validate name & go to Step 2
+  const handleContinue = async () => {
+    const isNameValid = await trigger("name");
+    if (isNameValid) {
+      setStep(2);
+    }
+  };
+
+  // ✅ STEP 2: On Submit → Send OTP
   const onSubmit = async (data: RegisterFormData) => {
     setSubmitError("");
     try {
@@ -146,71 +130,137 @@ const RegisterForm: React.FC = () => {
     }
   };
 
-  // ✅ STEP 2: After OTP verified → Register user
   const handleVerifyOtp = async () => {
-  if (!formData) return;
+    if (!formData) return;
+    try {
+      const userData = await verifyOtpAsync({
+        email: formData.email,
+        otp,
+        password: formData.password,
+      });
 
-  try {
-    // ✅ NOW THIS RETURNS THE USER DATA + TOKEN!
-    const userData = await verifyOtpAsync({
-      email: formData.email,
-      otp,
-      password: formData.password,
-    });
+      setUser({
+        _id: userData._id,
+        name: userData.name,
+        email: userData.email || null,
+        role: userData.role,
+      });
+      setToken(userData.token);
+      localStorage.setItem("token", userData.token);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          _id: userData._id,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+        })
+      );
+    } catch (error: any) {
+      const msg = error.message || "Failed to create account";
+      setSubmitError(msg);
+      console.error("Registration Error:", error);
+    }
+  };
 
-    console.log("✅ Registration successful:", userData); // DEBUG
-
-    // Save to context + localStorage
-    setUser({
-      _id: userData._id,
-      name: userData.name,
-      email: userData.email,
-      role: userData.role,
-    });
-    setToken(userData.token);
-    localStorage.setItem("token", userData.token);
-    localStorage.setItem("user", JSON.stringify({
-      _id: userData._id,
-      name: userData.name,
-      email: userData.email,
-      role: userData.role,
-    }));
-
-    // Redirect will happen via useEffect when user/token are set
-  } catch (error: any) {
-    const msg = error.message || "Failed to create account";
-    setSubmitError(msg);
-    console.error("Registration Error:", error);
-  }
-};
-  // ✅ Redirect AFTER context updates (user & token are set)
   useEffect(() => {
-    if (user && token) {
-      alert("🎉 Account created successfully!");
-      if (isMounted.current) {
-        navigate("/");
-      }
+    if (user && token && isMounted.current) {
+      navigate("/");
     }
   }, [user, token, navigate]);
 
-  // ✅ Cleanup
   useEffect(() => {
     return () => {
       isMounted.current = false;
     };
   }, []);
 
-  // ✅ Combine errors
   const errorMessage =
     submitError || verifyOtpError?.message || sendOtpError?.message || "";
 
-  return (
-    <AuthCardLayout
-      title="Join Company Name"
-      subtitle="Create your account to get started"
-      icon={<PersonAdd />}
-    >
-      {isOtpMode ? (
+  // ✅ Render Step 1: Only Full Name
+  if (step === 1) {
+    return (
+      <AuthCardLayout
+        title="Join DylanBiotech"
+        subtitle="Let's get started"
+        icon={<PersonAdd />}
+      >
+        <Controller
+          name="name"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              label="Full Name"
+              autoComplete="name"
+              autoFocus
+              error={!!errors.name}
+              helperText={errors.name?.message}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Person color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{
+                mb: 3,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                  },
+                },
+              }}
+            />
+          )}
+        />
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={handleContinue}
+          disabled={isSubmitting}
+          sx={{
+            py: 1.5,
+            borderRadius: 2,
+            background: "linear-gradient(45deg, #667eea, #764ba2)",
+            fontSize: "1.1rem",
+            fontWeight: "bold",
+            textTransform: "none",
+            boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
+            "&:hover": {
+              background: "linear-gradient(45deg, #5a6fd8, #6a42a0)",
+              boxShadow: "0 6px 20px rgba(102, 126, 234, 0.6)",
+            },
+          }}
+        >
+          Continue
+        </Button>
+        <Box sx={{ mt: 3 }}>
+          <AuthRedirectLink
+            text="Already have an account?"
+            href="/login"
+            linkText="Sign in here"
+          />
+        </Box>
+      </AuthCardLayout>
+    );
+  }
+
+  // ✅ Render Step 2: Email, Password, etc.
+  if (isOtpMode) {
+    return (
+      <AuthCardLayout
+        title="Verify Your Email"
+        subtitle="Enter the OTP sent to your email"
+        icon={<Email />}
+      >
         <OtpForm
           otp={otp}
           setOtp={setOtp}
@@ -221,166 +271,143 @@ const RegisterForm: React.FC = () => {
           onResend={() => sendOtp(formData?.email || "")}
           expiryTime={600}
         />
-      ) : (
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <Controller
-            name="name"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                fullWidth
-                label="Full Name"
-                autoComplete="name"
-                autoFocus
-                error={!!errors.name}
-                helperText={errors.name?.message}
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Person color="action" />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-                sx={{
-                  mb: 3,
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 2,
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      transform: "translateY(-2px)",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    },
-                  },
-                }}
-              />
-            )}
-          />
+      </AuthCardLayout>
+    );
+  }
 
-          <Controller
-            name="email"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                fullWidth
-                label="Email Address"
-                autoComplete="email"
-                error={!!errors.email}
-                helperText={errors.email?.message}
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Email color="action" />
-                      </InputAdornment>
-                    ),
+  return (
+    <AuthCardLayout
+      title="Create Your Account"
+      subtitle="Complete your registration"
+      icon={<PersonAdd />}
+    >
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <Controller
+          name="email"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              label="Email Address"
+              autoComplete="email"
+              error={!!errors.email}
+              helperText={errors.email?.message}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Email color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{
+                mb: 3,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                   },
-                }}
-                sx={{
-                  mb: 3,
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 2,
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      transform: "translateY(-2px)",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    },
-                  },
-                }}
-              />
-            )}
-          />
-
-          <PasswordField
-            name="password"
-            label="Password"
-            control={control}
-            error={!!errors.password}
-            helperText={errors.password?.message}
-            autoComplete="new-password"
-          />
-
-          {password && (
-            <Box sx={{ mb: 2 }}>
-              <LinearProgress
-                variant="determinate"
-                value={passwordStrength}
-                color={getStrengthColor(passwordStrength)}
-                sx={{ borderRadius: 1, height: 6, mb: 1 }}
-              />
-              <Typography variant="caption" color="text.secondary">
-                Password strength:{" "}
-                {passwordStrength < 25
-                  ? "Weak"
-                  : passwordStrength < 50
-                  ? "Fair"
-                  : passwordStrength < 75
-                  ? "Good"
-                  : "Strong"}
-              </Typography>
-            </Box>
+                },
+              }}
+            />
           )}
+        />
+        <PasswordField
+          name="password"
+          label="Password"
+          control={control}
+          error={!!errors.password}
+          helperText={errors.password?.message}
+          autoComplete="new-password"
+        />
+        {password && (
+          <Box sx={{ mb: 2 }}>
+            <LinearProgress
+              variant="determinate"
+              value={passwordStrength}
+              color={getStrengthColor(passwordStrength)}
+              sx={{ borderRadius: 1, height: 6, mb: 1 }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              Password strength:{" "}
+              {passwordStrength < 25
+                ? "Weak"
+                : passwordStrength < 50
+                ? "Fair"
+                : passwordStrength < 75
+                ? "Good"
+                : "Strong"}
+            </Typography>
+          </Box>
+        )}
+        <PasswordField
+          name="confirmPassword"
+          label="Confirm Password"
+          control={control}
+          error={!!errors.confirmPassword}
+          helperText={errors.confirmPassword?.message}
+          autoComplete="new-password"
+        />
 
-          <PasswordField
-            name="confirmPassword"
-            label="Confirm Password"
-            control={control}
-            error={!!errors.confirmPassword}
-            helperText={errors.confirmPassword?.message}
-            autoComplete="new-password"
-          />
+        <AuthErrorAlert message={errorMessage} />
 
-          <AuthErrorAlert message={errorMessage} />
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
+          disabled={isSubmitting || isSendingOtp}
+          startIcon={<PersonAdd />}
+          sx={{
+            py: 1.5,
+            borderRadius: 2,
+            background: "linear-gradient(45deg, #667eea, #764ba2)",
+            fontSize: "1.1rem",
+            fontWeight: "bold",
+            textTransform: "none",
+            boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
+            "&:hover": {
+              background: "linear-gradient(45deg, #5a6fd8, #6a42a0)",
+              boxShadow: "0 6px 20px rgba(102, 126, 234, 0.6)",
+            },
+          }}
+        >
+          {isSendingOtp ? (
+            <>
+              Sending OTP... <CircularProgress size={16} />
+            </>
+          ) : (
+            "Create Account"
+          )}
+        </Button>
 
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            disabled={isSubmitting || isSendingOtp}
-            startIcon={<PersonAdd />}
-            sx={{
-              py: 1.5,
-              borderRadius: 2,
-              background: "linear-gradient(45deg, #667eea, #764ba2)",
-              fontSize: "1.1rem",
-              fontWeight: "bold",
-              textTransform: "none",
-              boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
-              "&:hover": {
-                background: "linear-gradient(45deg, #5a6fd8, #6a42a0)",
-                boxShadow: "0 6px 20px rgba(102, 126, 234, 0.6)",
-              },
-            }}
-          >
-            {isSendingOtp ? (
-              <>
-                Sending OTP... <CircularProgress size={16} />
-              </>
-            ) : (
-              "Create Account"
-            )}
-          </Button>
+        <AuthMethodDivider text="Or sign up with" />
 
-          <AuthMethodDivider text="Or sign up with" />
+        <GoogleButton
+          onClick={handleGoogleAuth}
+          isPending={isGooglePending}
+          label="Sign up with Google"
+        />
 
-          <GoogleButton
-            onClick={handleGoogleAuth}
-            isPending={isGooglePending}
-            label="Sign up with Google"
-          />
+        <Button
+          fullWidth
+          variant="outlined"
+          onClick={() => navigate("/signup-mobile")}
+          sx={{ mt: 2, py: 1.2, borderRadius: 2 }}
+        >
+          <PhoneAndroid sx={{ mr: 1 }} />
+          Sign up with Mobile
+        </Button>
 
-          {/* ❌ REMOVED: "Sign up with Email OTP" button — as requested */}
-
-          <AuthRedirectLink
-            text="Already have an account?"
-            href="/login"
-            linkText="Sign in here"
-          />
-        </form>
-      )}
+        <AuthRedirectLink
+          text="Already have an account?"
+          href="/login"
+          linkText="Sign in here"
+        />
+      </form>
     </AuthCardLayout>
   );
 };

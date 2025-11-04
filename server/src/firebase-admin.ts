@@ -1,6 +1,6 @@
 // src/firebase-admin.ts
 import * as admin from "firebase-admin";
-import * as serviceAccount from "./config/dylanbiotech-fd09f-firebase-adminsdk-fbsvc-824e271979.json"; // ✅ Direct JSON import
+import * as serviceAccount from "./config/verifymykyc-5f02e-firebase-adminsdk-fbsvc-41079032c4.json"; // ✅ Direct JSON import
 
 // Initialize only once
 if (!admin.apps.length) {
@@ -12,6 +12,7 @@ if (!admin.apps.length) {
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+      projectId: "verifymykyc-5f02e",
     });
 
     console.log("✅ Firebase Admin SDK initialized successfully");

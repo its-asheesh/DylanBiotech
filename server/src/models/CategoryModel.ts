@@ -85,6 +85,6 @@ categorySchema.virtual('url').get(function() {
 // Index for performance
 categorySchema.index({ isMain: 1, isActive: 1 });
 categorySchema.index({ parent: 1, isActive: 1 });
-categorySchema.index({ slug: 1 });
+// categorySchema.index({ slug: 1 });
 
 export default mongoose.model<ICategory>('Category', categorySchema);

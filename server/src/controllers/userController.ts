@@ -1,100 +1,108 @@
 // src/controllers/userController.ts
-import { Request, Response } from 'express';
-import asyncHandler from 'express-async-handler';
-import { UserService } from '../services/UserService';
+import { Request, Response } from "express";
+import asyncHandler from "express-async-handler";
+import { UserService } from "../services/UserService";
+import User from "../models/UserModel";
 
 const userService = new UserService();
 
 /**
- * @desc    Register a new user
- * @route   POST /api/users/register
- * @access  Public
- */
-export const registerUser = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, password } = req.body;
-
-  // Validate required fields
-  if (!name || !email || !password) {
-    res.status(400).json({ message: 'Please provide name, email and password' });
-    return;
-  }
-
-  try {
-    const userData = await userService.register(req.body);
-    res.status(201).json(userData);
-  } catch (error: any) {
-    // Handle specific known errors
-    if (error.message === 'User with this email already exists') {
-      res.status(409).json({ message: 'User with this email already exists' });
-      return;
-    }
-    
-    // Log unexpected errors
-    console.error('User registration error:', error);
-    res.status(500).json({ message: 'Registration failed. Please try again.' });
-  }
-});
-
-/**
- * @desc    Authenticate user & get token
- * @route   POST /api/users/login
- * @access  Public
- */
-export const loginUser = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-
-  // Validate required fields
-  if (!email || !password) {
-    res.status(400).json({ message: 'Please provide email and password' });
-    return;
-  }
-
-  try {
-    const userData = await userService.login(req.body);
-    res.status(200).json(userData);
-  } catch (error: any) {
-    // Handle specific known errors
-    if (error.message === 'Invalid email or password') {
-      res.status(401).json({ message: 'Invalid email or password' });
-      return;
-    }
-    
-    if (error.message === 'This account uses passwordless login. Please use OTP or Google.') {
-      res.status(400).json({ message: 'This account uses passwordless login. Please use OTP or Google.' });
-      return;
-    }
-    
-    // Log unexpected errors
-    console.error('User login error:', error);
-    res.status(500).json({ message: 'Login failed. Please try again.' });
-  }
-});
-
-/**
  * @desc    Get current user profile
  * @route   GET /api/users/profile
- * @access  Private (requires authentication middleware)
+ * @access  Private
  */
-export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
-  // This would require authentication middleware to set req.user
-  // For now, just return a placeholder
-  res.status(200).json({
-    message: 'User profile endpoint - implement with auth middleware'
-  });
-});
+export const getUserProfile = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = await User.findById((req as any).user?._id).select("-password");
+    if (!user) {
+      res.status(404);
+      throw new Error("User not found");
+    }
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+    });
+  }
+);
 
 /**
  * @desc    Update user profile
  * @route   PUT /api/users/profile
- * @access  Private (requires authentication middleware)
+ * @access  Private
  */
-export const updateUserProfile = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email } = req.body;
-  
-  // This would require authentication middleware to set req.user
-  // For now, just return a placeholder
-  res.status(200).json({
-    message: 'User profile update endpoint - implement with auth middleware',
-    updatedFields: { name, email }
-  });
-});
+export const updateUserProfile = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = await User.findById((req as any).user?._id);
+    if (!user) {
+      res.status(404);
+      throw new Error("User not found");
+    }
+
+    user.name = req.body.name || user.name;
+    user.email = req.body.email ? req.body.email.toLowerCase().trim() : user.email;
+    user.phone = req.body.phone || user.phone;
+
+    const updatedUser = await user.save();
+    res.json({
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      role: updatedUser.role,
+    });
+  }
+);
+
+export const changePassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      res.status(400);
+      throw new Error("Current and new password are required");
+    }
+
+    const user = await User.findById((req as any).user?._id);
+    if (!user || !user.password) {
+      res.status(404);
+      throw new Error("User not found");
+    }
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      res.status(400);
+      throw new Error("Current password is incorrect");
+    }
+
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: "Password updated successfully" });
+  }
+);
+
+export const deleteUserAccount = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = (req as any).user?._id;
+    if (!userId) {
+      res.status(401);
+      throw new Error("Not authorized");
+    }
+
+    const { password } = req.body;
+    if (!password) {
+      res.status(400);
+      throw new Error("Password is required to delete your account");
+    }
+
+    const isPasswordValid = await userService.verifyUserPassword(userId, password);
+    if (!isPasswordValid) {
+      res.status(400);
+      throw new Error("Password is incorrect");
+    }
+
+    await userService.deleteUser(userId);
+    res.json({ message: "Your account has been permanently deleted." });
+  }
+);

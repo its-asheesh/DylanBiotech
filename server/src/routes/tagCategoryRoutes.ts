@@ -1,26 +1,17 @@
-import express from 'express';
+import { Router } from 'express';
+import * as ctrl from '../controllers/tagCategoryController';
 import { protect, isAdmin } from '../middleware/authMiddleware';
-import {
-  getTags,
-  getTagById,
-  createTag,
-  updateTag,
-  deleteTag,
-  getTagsWithProductCount,
-  searchTags
-} from '../controllers/tagCategoryController';
+import { upload } from '../middleware/uploadMiddleware';
 
-const router = express.Router();
+const router = Router();
 
-// Admin-only protection
-router.use(protect, isAdmin);
+// Public
+router.get('/', ctrl.listTags);
+router.get('/:slug', ctrl.getTag);
 
-router.get('/', getTags);
-router.get('/with-count', getTagsWithProductCount);
-router.get('/search', searchTags);
-router.post('/', createTag);
-router.get('/:id', getTagById);
-router.put('/:id', updateTag);
-router.delete('/:id', deleteTag);
+// Admin
+router.post('/', protect, isAdmin, upload.single('icon'), ctrl.createTag);
+router.put('/:id', protect, isAdmin, upload.single('icon'), ctrl.updateTag);
+router.delete('/:id', protect, isAdmin, ctrl.deleteTag);
 
 export default router;

@@ -1,22 +1,17 @@
-import express from 'express';
+import { Router } from 'express';
+import * as ctrl from '../controllers/categoryController';
 import { protect, isAdmin } from '../middleware/authMiddleware';
-import {
-  getCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-  getCategoryById
-} from '../controllers/categoryController';
+import { upload } from '../middleware/uploadMiddleware';
 
-const router = express.Router();
+const router = Router();
 
-// Admin-only routes
-router.use(protect, isAdmin);
+// Public
+router.get('/', ctrl.listCategories);
+router.get('/:slug', ctrl.getCategory);
 
-router.get('/', getCategories);
-router.post('/', createCategory);
-router.get('/:id', getCategoryById);
-router.put('/:id', updateCategory);
-router.delete('/:id', deleteCategory);
+// Admin
+router.post('/', protect, isAdmin, upload.single('image'), ctrl.createCategory);
+router.put('/:id', protect, isAdmin, upload.single('image'), ctrl.updateCategory);
+router.delete('/:id', protect, isAdmin, ctrl.deleteCategory);
 
 export default router;

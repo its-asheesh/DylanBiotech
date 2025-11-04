@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import asyncHandler from 'express-async-handler';
 import User from '../models/UserModel';
+import { JWT_ACCESS_SECRET } from '../config/env';
 
 // protect middleware with correct return type: Promise<void>
 export const protect = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -15,7 +16,7 @@ export const protect = asyncHandler(async (req: Request, res: Response, next: Ne
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
+    const decoded = jwt.verify(token, JWT_ACCESS_SECRET) as { id: string };
 
     const user = await User.findById(decoded.id).select('-password');
 

@@ -1,79 +1,43 @@
-import { Request, Response, NextFunction } from 'express';
-import { TagCategoryService } from '../services/TagCategoryService';
-import asyncHandler from '../middleware/asyncHandler';
+// src/controllers/tagCategoryController.ts
+import { Request, Response } from 'express';
+import asyncHandler from 'express-async-handler';
+import * as tagService from '../services/TagCategoryService';
+import { uploadToCloudinary } from '../middleware/uploadMiddleware';
 
-const tagService = new TagCategoryService();
-
-// @desc    Get all tag categories
-// @route   GET /api/admin/tags
-// @access  Admin
-export const getTags = asyncHandler(async (req: Request, res: Response) => {
-  const includeInactive = req.query.includeInactive === 'true';
-  const tags = await tagService.getAllTags(includeInactive);
-  res.json(tags);
-});
-
-// @desc    Get tag by ID
-// @route   GET /api/admin/tags/:id
-// @access  Admin
-export const getTagById = asyncHandler(async (req: Request, res: Response) => {
-  const tag = await tagService.getTagById(req.params.id);
-  if (!tag) {
-    res.status(404);
-    throw new Error('Tag not found');
-  }
-  res.json(tag);
-});
-
-// @desc    Create new tag category
-// @route   POST /api/admin/tags
-// @access  Admin
 export const createTag = asyncHandler(async (req: Request, res: Response) => {
-  const tag = await tagService.createTag(req.body);
-  res.status(201).json(tag);
+  let iconUrl = req.body.icon;
+
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file.buffer, 'tags');
+    iconUrl = result.secure_url;
+  }
+
+  const tagData = { ...req.body, icon: iconUrl };
+  const tag = await tagService.createTag(tagData);
+  res.status(201).json({ success: true,  tag });
 });
 
-// @desc    Update tag category
-// @route   PUT /api/admin/tags/:id
-// @access  Admin
+export const listTags = asyncHandler(async (_req: Request, res: Response) => {
+  const tags = await tagService.getAllTags();
+  res.json({ success: true, tags });
+});
+
+export const getTag = asyncHandler(async (req: Request, res: Response) => {
+  const tag = await tagService.getTagBySlug(req.params.slug);
+  res.json({ success: true,  tag });
+});
+
 export const updateTag = asyncHandler(async (req: Request, res: Response) => {
-  const tag = await tagService.updateTag(req.params.id, req.body);
-  if (!tag) {
-    res.status(404);
-    throw new Error('Tag not found');
+  let iconUrl = req.body.icon;
+  if (req.file) {
+    const result = await uploadToCloudinary(req.file.buffer, 'tags');
+    iconUrl = result.secure_url;
   }
-  res.json(tag);
+  const tag = await tagService.updateTag(req.params.id, { ...req.body, icon: iconUrl });
+  res.json({ success: true,  tag });
 });
 
-// @desc    Delete tag category
-// @route   DELETE /api/admin/tags/:id
-// @access  Admin
 export const deleteTag = asyncHandler(async (req: Request, res: Response) => {
-  const success = await tagService.deleteTag(req.params.id);
-  if (!success) {
-    res.status(404);
-    throw new Error('Tag not found');
-  }
-  res.json({ message: 'Tag removed' });
-});
-
-// @desc    Get tags with product count
-// @route   GET /api/admin/tags/with-count
-// @access  Admin
-export const getTagsWithProductCount = asyncHandler(async (req: Request, res: Response) => {
-  const tags = await tagService.getTagsWithProductCount();
-  res.json(tags);
-});
-
-// @desc    Search tags
-// @route   GET /api/admin/tags/search
-// @access  Admin
-export const searchTags = asyncHandler(async (req: Request, res: Response) => {
-  const { q } = req.query;
-  if (!q || typeof q !== 'string') {
-    res.status(400);
-    throw new Error('Search query required');
-  }
-  const tags = await tagService.searchTags(q);
-  res.json(tags);
+  await tagService.deleteTag(req.params.id);
+  res.status(204).send();
 });

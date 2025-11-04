@@ -1,82 +1,67 @@
-import { Request, Response, NextFunction } from 'express';
-import { ProductService } from '../services/ProductService';
-import asyncHandler from '../middleware/asyncHandler';
+// src/controllers/productController.ts
+import { Request, Response } from 'express';
+import asyncHandler from 'express-async-handler';
+import * as productService from '../services/ProductService';
+import upload from '../middleware/uploadMiddleware'; // your multer setup
 
-const productService = new ProductService();
+// Helper: Parse query params safely
+const parseNumber = (val: any, fallback: number) => {
+  const num = parseInt(val, 10);
+  return isNaN(num) ? fallback : num;
+};
 
-// @desc    Get paginated products with filters
-// @route   GET /api/products
-// @access  Public
-export const getProducts = asyncHandler(async (req: Request, res: Response) => {
-  const { keyword, category, subcategory, tag, page = 1, limit = 10 } = req.query;
-
-  const filters = {
-    mainCategory: category as string | undefined,
-    subCategory: subcategory as string | undefined,
-    tagCategories: tag ? [tag as string] : undefined,
-    search: keyword as string | undefined
-  };
-
-  const result = await productService.getProductsPaginated(
-    Number(page),
-    Number(limit),
-    filters
-  );
-
-  res.json({
-    products: result.products,
-    page: Number(page),
-    pages: result.pages,
-    total: result.total
-  });
-});
-
-// @desc    Get product by ID
-// @route   GET /api/products/:id
-// @access  Public
-export const getProductById = asyncHandler(async (req: Request, res: Response) => {
-  const product = await productService.getProductById(req.params.id);
-
-  if (!product || !product.isActive) {
-    res.status(404);
-    throw new Error('Product not found');
-  }
-
-  res.json(product);
-});
-
-// @desc    Create new product
-// @route   POST /api/products
-// @access  Admin (protected by route middleware)
+// 🔐 CREATE Product (Admin only)
 export const createProduct = asyncHandler(async (req: Request, res: Response) => {
   const product = await productService.createProduct(req.body);
-  res.status(201).json(product);
+  res.status(201).json({ success: true,  product });
 });
 
-// @desc    Update product
-// @route   PUT /api/products/:id
-// @access  Admin
+// 🌐 LIST Products (Public)
+export const listProducts = asyncHandler(async (req: Request, res: Response) => {
+  const { page = 1, limit = 10, category, brand, featured, ...rest } = req.query;
+
+  const filters = {
+    ...rest,
+    ...(brand && { brand: { $regex: brand, $options: 'i' } }),
+    ...(featured !== undefined && { featured: featured === 'true' }),
+    category: category as string | undefined,
+  };
+
+  const result = await productService.listProducts(
+    filters,
+    parseNumber(page, 1),
+    parseNumber(limit, 10)
+  );
+
+  res.json({ success: true, ...result });
+});
+
+// 🌐 GET Single Product (Public)
+export const getProduct = asyncHandler(async (req: Request, res: Response) => {
+  const product = await productService.getProductById(req.params.id);
+  res.json({ success: true,  product });
+});
+
+// 🔐 UPDATE Product (Admin only)
 export const updateProduct = asyncHandler(async (req: Request, res: Response) => {
   const product = await productService.updateProduct(req.params.id, req.body);
-  
-  if (!product) {
-    res.status(404);
-    throw new Error('Product not found');
-  }
-
-  res.json(product);
+  res.json({ success: true,  product });
 });
 
-// @desc    Delete product
-// @route   DELETE /api/products/:id
-// @access  Admin
+// 🔐 DELETE Product (Admin only)
 export const deleteProduct = asyncHandler(async (req: Request, res: Response) => {
-  const success = await productService.deleteProduct(req.params.id);
-  
-  if (!success) {
-    res.status(404);
-    throw new Error('Product not found');
-  }
+  await productService.deleteProduct(req.params.id);
+  res.status(204).send();
+});
 
-  res.json({ message: 'Product removed' });
+// 🔐 CREATE Variant (Admin only)
+export const createVariant = asyncHandler(async (req: Request, res: Response) => {
+  const variant = await productService.createVariant(req.body);
+  res.status(201).json({ success: true,  variant });
+});
+
+// 🌐 GET Variants by Product ID (Public)
+export const getVariants = asyncHandler(async (req: Request, res: Response) => {
+  const variants = await productService.getVariantsByProduct(req.params.productId);
+  res.json({ success: true, variants });
 });

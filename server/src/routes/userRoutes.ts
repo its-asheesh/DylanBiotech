@@ -1,18 +1,19 @@
 // src/routes/userRoutes.ts
 import { Router } from 'express';
 import { 
-  registerUser, 
-  loginUser, 
   getUserProfile, 
-  updateUserProfile 
+  updateUserProfile ,
+  changePassword,
+  deleteUserAccount
 } from '../controllers/userController';
 import { protect } from '../middleware/authMiddleware';
 
 const router = Router();
 
-router.post('/register', registerUser);
-router.post('/login', loginUser);
 router.get('/profile', protect, getUserProfile);
 router.put('/profile', protect, updateUserProfile);
+router.post('/change-password', protect, changePassword);
+router.route("/delete-account")
+  .delete(protect, deleteUserAccount);
 
 export default router;

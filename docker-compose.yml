@@ -1,0 +1,26 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # 🔹 Backend API (uses MongoDB Atlas)
+  backend:
+    build: ./server
+    container_name: dylan_backend
+    ports:
+      - "5001:5001"
+    env_file:
+      - ./server/.env          # Load secrets from file
+    volumes:
+      # Live reload for development
+      - ./server:/app
+      - /app/node_modules
+    command: npm run dev
+
+  # 🔹 Admin Frontend
+  admin:
+    build: ./admin
+    container_name: dylan_admin
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend

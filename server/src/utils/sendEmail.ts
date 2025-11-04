@@ -1,9 +1,6 @@
 // src/utils/sendEmail.ts
 import nodemailer from 'nodemailer';
 
-console.log('📧 EMAIL_USER:', process.env.EMAIL_USER); // ← ADD THIS
-console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS); // ← ADD THIS
-
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
   throw new Error('Missing email credentials in .env');
 }

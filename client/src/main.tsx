@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'; // Optional but recommended
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
+import { HelmetProvider } from 'react-helmet-async';
 
 // ✅ Create a client
 const queryClient = new QueryClient({
@@ -25,11 +26,13 @@ const root = ReactDOM.createRoot(document.getElementById('root')!);
 root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}> {/* ✅ Wrap with QueryClientProvider */}
+      <HelmetProvider>
       <AuthProvider>
         <Router>
           <App />
         </Router>
       </AuthProvider>
+      </HelmetProvider>
       <ReactQueryDevtools initialIsOpen={false} /> {/* ✅ Devtools (optional, but super helpful) */}
     </QueryClientProvider>
   </React.StrictMode>

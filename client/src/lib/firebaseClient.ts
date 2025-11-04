@@ -78,6 +78,9 @@ try {
 
   throw new Error(`Firebase initialization failed: ${error instanceof Error ? error.message : "Unknown error"}`)
 }
+console.log("Firebase App ID:", app.options.appId)
+console.log("Firebase API Key:", app.options.apiKey)
+console.log("🔥 Active Firebase Project:", app.options.projectId)
 
 export const auth = authInstance
 export { googleProvider }

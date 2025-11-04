@@ -15,6 +15,7 @@ import { useGoogleAuthHandler } from "@/hooks/useGoogleAuthHandler";
 import { useOtpFlow } from "@/hooks/useOtpFlow";
 import { useAuthForm } from "@/hooks/useAuthForm";
 
+
 // ✅ Reusable Components
 import { AuthCardLayout } from "./AuthCardLayout";
 import { OtpForm } from "./OtpForm";
@@ -53,8 +54,8 @@ type LoginFormData = z.infer<typeof loginSchema>;
 const LoginForm: React.FC = () => {
   useAuthForm();
 
-  const { login, loginWithOtp } = useAuth();
-  const navigate = useNavigate(); // ← Add this
+  const { user, token, login, loginWithOtp } = useAuth();
+  const navigate = useNavigate();
 
   const [rememberMe, setRememberMe] = useState(false);
   const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
@@ -68,14 +69,14 @@ const LoginForm: React.FC = () => {
   const { handleGoogleAuth, isPending: isGooglePending } =
     useGoogleAuthHandler();
 
-  // ✅ OTP Flow — KEEP YOUR ORIGINAL LOGIC
+  // ✅ OTP Flow
   const {
     sendOtp,
     isSendingOtp,
     sendOtpError,
     isVerifyingOtp,
     verifyOtpError,
-  } = useOtpFlow(); // ← Don't pass onSuccess — handle in handleVerifyOtp
+  } = useOtpFlow();
 
   // ✅ Form
   const {
@@ -120,7 +121,6 @@ const LoginForm: React.FC = () => {
 
         const data = await response.json();
 
-        // ✅ Only update if this is the latest request
         if (controller.signal.aborted) return;
 
         if (!data.exists) {
@@ -143,19 +143,29 @@ const LoginForm: React.FC = () => {
     validateEmailAvailability();
 
     return () => {
-      controller.abort(); // ✅ Cancel previous request
+      controller.abort();
     };
   }, [debouncedEmail, setError, clearErrors]);
-  // ✅ Submit
-  const onSubmit = (data: LoginFormData) => {
-    login(data.email, data.password, rememberMe)
-      .then(() => navigate("/"))
-      .catch((error) => {
-        console.error("Login error:", error.message || error);
-      });
-  };
 
-  // ✅ Handle OTP — YOUR ORIGINAL WORKING LOGIC
+  // ✅ Submit
+  const onSubmit = async (data: LoginFormData) => {
+  try {
+    await login(data.email, data.password, rememberMe);
+    // ✅ Redirect handled automatically by useAuthForm()
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error("Login error:", error.message);
+    }
+  }
+};
+
+useEffect(() => {
+  if (user && token) {
+    navigate("/");
+  }
+}, [user, token, navigate]);
+
+  // ✅ Handle OTP
   const handleSendOtp = async () => {
     try {
       await sendOtp(getValues("email"));
@@ -166,21 +176,15 @@ const LoginForm: React.FC = () => {
   };
 
   const handleVerifyOtp = async () => {
-    try {
-      await loginWithOtp(getValues("email"), otp);
-      navigate("/");
-    } catch (error: unknown) {
-      // ← Explicitly type as unknown
-      if (error instanceof Error) {
-        if (error.message !== "Invalid or expired OTP") {
-          console.error("OTP Verification Error:", error.message);
-        }
-      } else {
-        console.error("OTP Verification Error: Unknown error", error);
-      }
+  try {
+    await loginWithOtp(getValues("email"), otp);
+    // ✅ Redirect handled automatically
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message !== "Invalid or expired OTP") {
+      console.error("OTP error:", error.message);
     }
-  };
-
+  }
+};
   // ✅ Combine errors
   const errorMessage =
     errors.email?.message ||
@@ -196,7 +200,7 @@ const LoginForm: React.FC = () => {
   return (
     <AuthCardLayout
       title="Welcome Back"
-      subtitle="Sign in to your Company Name account" //DylanBiotech
+      subtitle="Sign in to your DylanBiotech account"
       icon={<LoginIcon />}
     >
       {isOtpMode ? (
@@ -208,7 +212,7 @@ const LoginForm: React.FC = () => {
           onBack={() => setIsOtpMode(false)}
           error={!!verifyOtpError}
           onResend={() => sendOtp(getValues("email"))}
-          expiryTime={600} // 10 minutes
+          expiryTime={600}
         />
       ) : (
         <form onSubmit={handleSubmit(onSubmit)}>

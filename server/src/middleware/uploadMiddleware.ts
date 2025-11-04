@@ -1,23 +1,45 @@
+// src/middleware/upload.ts
+import { v2 as cloudinary, UploadApiErrorResponse, UploadApiResponse } from 'cloudinary';
+import streamifier from 'streamifier';
 import multer from 'multer';
-import path from 'path';
 
-const storage = multer.diskStorage({
-  destination(_req, _file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename(_req, file, cb) {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
+import '../config/cloudinary';
 
-const fileFilter = (_req: any, file: any, cb: any) => {
-  const allowedTypes = /jpeg|jpg|png/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
-  if (extname && mimetype) cb(null, true);
-  else cb(new Error('Only .jpeg, .jpg and .png files are allowed'));
+interface CloudinaryResponse {
+  secure_url: string;
+  public_id: string;
+}
+
+export const uploadToCloudinary = (
+  fileBuffer: Buffer,
+  folder: string,
+  publicId?: string
+): Promise<CloudinaryResponse> => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder, public_id: publicId, resource_type: 'auto', timeout: 60000 },
+      (error: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
+        if (error) return reject(error);
+        if (!result) return reject(new Error('Upload returned no result'));
+        resolve({ secure_url: result.secure_url, public_id: result.public_id });
+      }
+    );
+    streamifier.createReadStream(fileBuffer).pipe(uploadStream);
+  });
 };
 
-const upload = multer({ storage, fileFilter });
+const storage = multer.memoryStorage();
+
+export const upload = multer({
+  storage,
+  fileFilter(_req, file, cb) {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 export default upload;
