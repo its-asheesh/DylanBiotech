@@ -11,18 +11,27 @@ import {
   login,
   logout
 } from "../controllers/authController";
+import { validate } from "../middleware/validationMiddleware";
+import {
+  loginSchema,
+  googleAuthSchema,
+  sendOtpSchema,
+  verifyOtpSchema,
+  checkEmailSchema,
+  resetPasswordSchema,
+  firebasePhoneLoginSchema,
+} from "../validations/authValidations";
 
 const router = Router();
 
-router.post("/login",login);
-router.post("/logout",logout)
-router.post("/google", googleAuth);
-router.post("/send-otp", sendOtp);
-router.post("/verify-otp", verifyOtp);
-router.get("/check-email", checkEmail);
-router.post("/refresh-token", refreshAccessToken);
-router.post('/reset-password', resetPassword);
-router.post("/firebase-phone-login", firebasePhoneLogin);
-
+router.post("/login", validate(loginSchema), login);
+router.post("/logout", logout);
+router.post("/google", validate(googleAuthSchema), googleAuth);
+router.post("/send-otp", validate(sendOtpSchema), sendOtp);
+router.post("/verify-otp", validate(verifyOtpSchema), verifyOtp);
+router.get("/check-email", validate(checkEmailSchema), checkEmail);
+router.post("/refresh-token", refreshAccessToken); // No validation needed (uses cookie)
+router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
+router.post("/firebase-phone-login", validate(firebasePhoneLoginSchema), firebasePhoneLogin);
 
 export default router;

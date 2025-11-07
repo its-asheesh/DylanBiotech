@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --exec ts-node --files src/index.ts",
-    "seed:categories": "ts-node --files src/utils/seedCategories.ts"
+    "seed:categories": "ts-node --files src/utils/seedCategories.ts",
+    "create:admin": "ts-node --files src/utils/createAdmin.ts"
   },
   "keywords": [],
   "author": "",
@@ -29,9 +30,10 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "nodemailer": "^7.0.6",
-    "redis": "^5.8.2",
+    "redis": "^5.9.0",
     "streamifier": "^0.1.1",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

@@ -25,6 +25,12 @@ export const protect = asyncHandler(async (req: Request, res: Response, next: Ne
       throw new Error('User not found');
     }
 
+    // Prevent deleted users from accessing protected routes
+    if (user.isDeleted) {
+      res.status(401);
+      throw new Error('Account has been deleted');
+    }
+
     req.user = user;
     next();
   } catch (error) {
@@ -39,6 +45,7 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction): void =
     next();
   } else {
     res.status(403);
-    throw new Error('Not authorized as admin');
+    const error = new Error('Not authorized as admin');
+    next(error);
   }
 };

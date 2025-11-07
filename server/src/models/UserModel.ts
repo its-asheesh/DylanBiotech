@@ -9,6 +9,8 @@ export interface IUser extends Document {
   password?: string;
   phone?: string; // ← Add this
   role: 'user' | 'admin';
+  isDeleted?: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   matchPassword(enteredPassword: string): Promise<boolean>;
 }
@@ -19,6 +21,8 @@ const userSchema = new Schema<IUser>({
   password: { type: String, required: false },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   phone: { type: String, unique: true, sparse: true },
+  isDeleted: { type: Boolean, default: false },
+  deletedAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -1,5 +1,5 @@
-// src/pages/SettingsPage.tsx
-export function SettingsPage() {
+// src/pages/Settings.tsx
+export default function Settings() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Settings</h1>
