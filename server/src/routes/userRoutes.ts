@@ -11,8 +11,10 @@ import {
   deleteUser,
   restoreUser
 } from '../controllers/userController';
-import { protect, isAdmin } from '../middleware/authMiddleware';
+import { protect } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/permissionMiddleware';
 import { validate } from '../middleware/validationMiddleware';
+import { Permission } from '../types/permissions';
 import {
   updateProfileSchema,
   changePasswordSchema,
@@ -32,11 +34,41 @@ router.post('/change-password', protect, validate(changePasswordSchema), changeP
 router.route("/delete-account")
   .delete(protect, validate(deleteAccountSchema), deleteUserAccount);
 
-// Admin-only routes (must be before /:id routes to avoid conflicts)
-router.get('/', protect, isAdmin, validate(listUsersSchema), listUsers);
-router.get('/:id', protect, isAdmin, validate(getUserByIdSchema), getUserById);
-router.put('/:id/role', protect, isAdmin, validate(updateUserRoleSchema), updateUserRole);
-router.delete('/:id', protect, isAdmin, validate(deleteUserSchema), deleteUser);
-router.post('/:id/restore', protect, isAdmin, validate(restoreUserSchema), restoreUser);
+// Admin-only routes with permission checks (must be before /:id routes to avoid conflicts)
+router.get(
+  '/',
+  protect,
+  requirePermission(Permission.VIEW_USERS),
+  validate(listUsersSchema),
+  listUsers
+);
+router.get(
+  '/:id',
+  protect,
+  requirePermission(Permission.VIEW_USERS),
+  validate(getUserByIdSchema),
+  getUserById
+);
+router.put(
+  '/:id/role',
+  protect,
+  requirePermission(Permission.MANAGE_USER_ROLES),
+  validate(updateUserRoleSchema),
+  updateUserRole
+);
+router.delete(
+  '/:id',
+  protect,
+  requirePermission(Permission.DELETE_USERS),
+  validate(deleteUserSchema),
+  deleteUser
+);
+router.post(
+  '/:id/restore',
+  protect,
+  requirePermission(Permission.MANAGE_USERS),
+  validate(restoreUserSchema),
+  restoreUser
+);
 
 export default router;

@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import * as ctrl from '../controllers/tagCategoryController';
-import { protect, isAdmin } from '../middleware/authMiddleware';
+import { protect } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/permissionMiddleware';
 import { upload } from '../middleware/uploadMiddleware';
 import { validate } from '../middleware/validationMiddleware';
+import { Permission } from '../types/permissions';
 import {
   createTagSchema,
   updateTagSchema,
@@ -16,9 +18,29 @@ const router = Router();
 router.get('/', ctrl.listTags);
 router.get('/:slug', validate(getTagSchema), ctrl.getTag);
 
-// Admin
-router.post('/', protect, isAdmin, upload.single('icon'), validate(createTagSchema), ctrl.createTag);
-router.put('/:id', protect, isAdmin, upload.single('icon'), validate(updateTagSchema), ctrl.updateTag);
-router.delete('/:id', protect, isAdmin, validate(deleteTagSchema), ctrl.deleteTag);
+// Admin routes with permission checks
+router.post(
+  '/',
+  protect,
+  requirePermission(Permission.MANAGE_TAG_CATEGORIES),
+  upload.single('icon'),
+  validate(createTagSchema),
+  ctrl.createTag
+);
+router.put(
+  '/:id',
+  protect,
+  requirePermission(Permission.MANAGE_TAG_CATEGORIES),
+  upload.single('icon'),
+  validate(updateTagSchema),
+  ctrl.updateTag
+);
+router.delete(
+  '/:id',
+  protect,
+  requirePermission(Permission.MANAGE_TAG_CATEGORIES),
+  validate(deleteTagSchema),
+  ctrl.deleteTag
+);
 
 export default router;

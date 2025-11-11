@@ -13,6 +13,8 @@ export interface AuthResponse {
   email?: string;
   phone?: string;
   role: "user" | "admin";
+  adminLevel?: number;
+  permissions?: string[];
   token: string; // ← only access token
   // ❌ NO refreshToken in response
 }
@@ -228,6 +230,8 @@ export class AuthService {
         email: user.email,
         phone: user.phone,
         role: user.role || "user",
+        adminLevel: user.role === 'admin' ? user.adminLevel : undefined,
+        permissions: user.role === 'admin' ? user.permissions : undefined,
         token: accessToken,
       },
       rawRefreshToken,

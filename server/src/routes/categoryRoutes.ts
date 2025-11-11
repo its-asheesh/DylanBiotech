@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import * as ctrl from '../controllers/categoryController';
-import { protect, isAdmin } from '../middleware/authMiddleware';
+import { protect } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/permissionMiddleware';
 import { upload } from '../middleware/uploadMiddleware';
 import { validate } from '../middleware/validationMiddleware';
+import { Permission } from '../types/permissions';
 import {
   listCategoriesSchema,
   getCategorySchema,
@@ -17,9 +19,29 @@ const router = Router();
 router.get('/', validate(listCategoriesSchema), ctrl.listCategories);
 router.get('/:slug', validate(getCategorySchema), ctrl.getCategory);
 
-// Admin
-router.post('/', protect, isAdmin, upload.single('image'), validate(createCategorySchema), ctrl.createCategory);
-router.put('/:id', protect, isAdmin, upload.single('image'), validate(updateCategorySchema), ctrl.updateCategory);
-router.delete('/:id', protect, isAdmin, validate(deleteCategorySchema), ctrl.deleteCategory);
+// Admin routes with permission checks
+router.post(
+  '/',
+  protect,
+  requirePermission(Permission.MANAGE_CATEGORIES),
+  upload.single('image'),
+  validate(createCategorySchema),
+  ctrl.createCategory
+);
+router.put(
+  '/:id',
+  protect,
+  requirePermission(Permission.MANAGE_CATEGORIES),
+  upload.single('image'),
+  validate(updateCategorySchema),
+  ctrl.updateCategory
+);
+router.delete(
+  '/:id',
+  protect,
+  requirePermission(Permission.MANAGE_CATEGORIES),
+  validate(deleteCategorySchema),
+  ctrl.deleteCategory
+);
 
 export default router;

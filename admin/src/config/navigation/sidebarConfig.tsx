@@ -9,6 +9,7 @@ import {
   FiPackage,
   FiTrendingUp,
   FiBarChart2,
+  FiShield,
 } from 'react-icons/fi';
 import { type NavItem } from '../../components/sidebar/AdminSidebar';
 
@@ -43,6 +44,7 @@ export const sidebarConfig: NavItem[] = [
     ],
   },
   { name: 'Users', href: '/admin/users', icon: <FiUsers /> },
+  { name: 'Admin Management', href: '/admin/admins', icon: <FiShield />, requireSuperAdmin: true },
   { name: 'Analytics', href: '/admin/analytics', icon: <FiBarChart2 /> },
   { name: 'Settings', href: '/admin/settings', icon: <FiSettings /> },
 ];

@@ -24,7 +24,9 @@ export const createCategory = asyncHandler(async (req: Request, res: Response) =
 
 export const listCategories = asyncHandler(async (req: Request, res: Response) => {
   const isMain = req.query.isMain === 'true' ? true : req.query.isMain === 'false' ? false : undefined;
-  const categories = await categoryService.getAllCategories(isMain);
+  const isActive = req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined;
+  const all = req.query.all === 'true' ? true : undefined;
+  const categories = await categoryService.getAllCategories(isMain, isActive, all);
   res.json({ success: true, categories });
 });
 

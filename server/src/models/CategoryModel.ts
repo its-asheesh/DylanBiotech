@@ -34,10 +34,16 @@ const categorySchema = new Schema<ICategory>({
   },
   slug: { 
     type: String, 
-    required: true, 
+    required: [true, 'Slug is required'], // Will be auto-generated in pre-validate hook
     unique: true,
     lowercase: true,
-    trim: true
+    trim: true,
+    validate: {
+      validator: function(v: string): boolean {
+        return Boolean(v && v.length > 0);
+      },
+      message: 'Slug cannot be empty'
+    }
   },
   isActive: { 
     type: Boolean, 
@@ -67,19 +73,31 @@ const categorySchema = new Schema<ICategory>({
 });
 
 // Auto-generate slug from name
-categorySchema.pre('save', function(next) {
-  if (this.isModified('name')) {
-    this.slug = this.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
+categorySchema.pre('validate', function(next) {
+  const doc = this as ICategory & { isModified: (path: string) => boolean };
+  // Generate slug before validation if it's missing or if name has changed
+  if (!doc.slug || doc.isModified('name')) {
+    if (doc.name && doc.name.trim()) {
+      doc.slug = doc.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      
+      // Ensure slug is not empty after generation
+      if (!doc.slug) {
+        // Fallback: use a default slug if name doesn't generate a valid slug
+        doc.slug = `category-${Date.now()}`;
+      }
+    }
   }
   next();
 });
 
 // Virtual for URL
 categorySchema.virtual('url').get(function() {
-  return `/categories/${this.slug}`;
+  const doc = this as ICategory;
+  return `/categories/${doc.slug}`;
 });
 
 // Index for performance

@@ -158,6 +158,7 @@ export const updateUserRoleSchema = {
     role: z.enum(['user', 'admin'], {
       message: 'Role must be either "user" or "admin"',
     }),
+    adminLevel: z.number().min(1).max(3).optional(),
   }),
 };
 

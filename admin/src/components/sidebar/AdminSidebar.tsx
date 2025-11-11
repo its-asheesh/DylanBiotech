@@ -14,6 +14,7 @@ export interface NavItem {
   icon: React.ReactNode;
   badge?: number;
   children?: NavItem[];
+  requireSuperAdmin?: boolean;
 }
 
 export interface AdminSidebarProps {

@@ -41,7 +41,8 @@ export const protect = asyncHandler(async (req: Request, res: Response, next: Ne
 
 
 export const isAdmin = (req: Request, res: Response, next: NextFunction): void => {
-  if (req.user && req.user.role === 'admin') {
+  const user = req.user;
+  if (user && user.role === 'admin') {
     next();
   } else {
     res.status(403);

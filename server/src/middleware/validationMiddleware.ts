@@ -15,14 +15,18 @@ export const validate = (schema: { body?: ZodSchema; query?: ZodSchema; params?:
         req.body = await schema.body.parseAsync(req.body);
       }
 
-      // Validate query
+      // Validate query - store validated result in a custom property
       if (schema.query) {
-        req.query = (await schema.query.parseAsync(req.query)) as typeof req.query;
+        const validatedQuery = await schema.query.parseAsync(req.query);
+        // Merge validated query back into req.query using Object.assign
+        Object.assign(req.query, validatedQuery);
       }
 
-      // Validate params
+      // Validate params - store validated result in a custom property
       if (schema.params) {
-        req.params = (await schema.params.parseAsync(req.params)) as typeof req.params;
+        const validatedParams = await schema.params.parseAsync(req.params);
+        // Merge validated params back into req.params using Object.assign
+        Object.assign(req.params, validatedParams);
       }
 
       next();
@@ -62,7 +66,8 @@ export const sanitizeObject = (obj: any): any => {
   if (typeof obj === 'object') {
     const sanitized: any = {};
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      // Use Object.prototype.hasOwnProperty.call for safer property checking
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         sanitized[key] = sanitizeObject(obj[key]);
       }
     }
@@ -79,10 +84,12 @@ export const sanitize = (req: Request, res: Response, next: NextFunction) => {
     req.body = sanitizeObject(req.body);
   }
   if (req.query) {
-    req.query = sanitizeObject(req.query);
+    const sanitizedQuery = sanitizeObject(req.query);
+    Object.assign(req.query, sanitizedQuery);
   }
   if (req.params) {
-    req.params = sanitizeObject(req.params);
+    const sanitizedParams = sanitizeObject(req.params);
+    Object.assign(req.params, sanitizedParams);
   }
   next();
 };

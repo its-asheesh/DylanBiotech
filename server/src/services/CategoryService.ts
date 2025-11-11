@@ -20,8 +20,17 @@ export const createCategory = async ( data : Partial<ICategory>): Promise<ICateg
   return await category.save();
 };
 
-export const getAllCategories = async (isMain?: boolean) => {
-  const query: any = { isActive: true };
+export const getAllCategories = async (isMain?: boolean, isActive?: boolean, all?: boolean) => {
+  const query: any = {};
+  // If 'all' is true, don't filter by isActive (return all)
+  // Otherwise, if isActive is not provided, default to true (active only) for backward compatibility
+  if (all) {
+    // Don't add isActive filter - return all categories
+  } else if (isActive !== undefined) {
+    query.isActive = isActive;
+  } else {
+    query.isActive = true;
+  }
   if (isMain !== undefined) query.isMain = isMain;
 
   return await Category.find(query)

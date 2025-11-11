@@ -1,5 +1,6 @@
 // src/services/UserService.ts
 import User, { IUser } from "../models/UserModel";
+import { AdminLevel, DEFAULT_PERMISSIONS } from "../types/permissions";
 
 export interface CreateUserInput {
   name: string;
@@ -8,6 +9,8 @@ export interface CreateUserInput {
   password?: string;
   avatar?: string;
   role?: "user" | "admin";
+  adminLevel?: AdminLevel;
+  permissions?: string[];
 }
 
 export interface UpdateProfileInput {
@@ -298,11 +301,13 @@ async verifyUserPassword(userId: string, password: string): Promise<boolean> {
    * @param userId - The ID of the user whose role to update
    * @param newRole - The new role ('user' | 'admin')
    * @param currentAdminId - The ID of the admin making the change (to prevent self-demotion)
+   * @param adminLevel - Optional admin level (only when promoting to admin)
    */
   async updateUserRole(
     userId: string,
     newRole: 'user' | 'admin',
-    currentAdminId: string
+    currentAdminId: string,
+    adminLevel?: AdminLevel
   ): Promise<IUser> {
     // Validate role value
     if (newRole !== 'user' && newRole !== 'admin') {
@@ -320,8 +325,16 @@ async verifyUserPassword(userId: string, password: string): Promise<boolean> {
       throw new Error('Cannot change your own role');
     }
 
-    // If demoting from admin, check if this is the last admin
+    // If demoting from admin, check if this is the last super admin
     if (user.role === 'admin' && newRole === 'user') {
+      if (user.adminLevel === AdminLevel.SUPER_ADMIN) {
+        const { AdminPermissionService } = await import('./AdminPermissionService');
+        const adminPermissionService = new AdminPermissionService();
+        const superAdminCount = await adminPermissionService.countSuperAdmins();
+        if (superAdminCount <= 1) {
+          throw new Error('Cannot demote the last super admin in the system');
+        }
+      }
       const adminCount = await this.countAdmins();
       if (adminCount <= 1) {
         throw new Error('Cannot demote the last admin in the system');
@@ -330,6 +343,22 @@ async verifyUserPassword(userId: string, password: string): Promise<boolean> {
 
     // Update the role
     user.role = newRole;
+    
+    // If promoting to admin, set default admin level and permissions
+    if (newRole === 'admin') {
+      const level = adminLevel || AdminLevel.ADMIN;
+      user.adminLevel = level;
+      
+      // Set default permissions for the level
+      if (DEFAULT_PERMISSIONS[level]) {
+        user.permissions = DEFAULT_PERMISSIONS[level];
+      }
+    } else {
+      // If demoting to user, clear admin-specific fields
+      user.adminLevel = undefined;
+      user.permissions = [];
+    }
+    
     return await user.save();
   }
 }

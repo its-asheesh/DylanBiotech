@@ -24,6 +24,8 @@ export const getUserProfile = asyncHandler(
       email: user.email,
       phone: user.phone,
       role: user.role,
+      adminLevel: user.role === 'admin' ? user.adminLevel : undefined,
+      permissions: user.role === 'admin' ? user.permissions : undefined,
     });
   }
 );
@@ -212,14 +214,15 @@ export const updateUserRole = asyncHandler(
     }
 
     // Role and user ID are validated by Zod middleware
-    const { role } = req.body;
+    const { role, adminLevel } = req.body;
     const targetUserId = req.params.id;
 
     try {
       const updatedUser = await userService.updateUserRole(
         targetUserId,
         role,
-        currentAdminId
+        currentAdminId,
+        adminLevel
       );
 
       res.json({

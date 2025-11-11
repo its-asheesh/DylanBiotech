@@ -95,7 +95,7 @@ export const createProductSchema = {
         .optional()
         .default([]),
       stock: stockSchema.default(0),
-      image: imageUrlSchema,
+      image: imageUrlSchema.optional(), // Optional if file is uploaded
       images: z
         .array(imageUrlSchema)
         .max(10, 'Cannot have more than 10 images')

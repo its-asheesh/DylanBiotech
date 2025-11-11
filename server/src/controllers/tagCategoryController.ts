@@ -17,8 +17,10 @@ export const createTag = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json({ success: true,  tag });
 });
 
-export const listTags = asyncHandler(async (_req: Request, res: Response) => {
-  const tags = await tagService.getAllTags();
+export const listTags = asyncHandler(async (req: Request, res: Response) => {
+  const isActive = req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined;
+  const all = req.query.all === 'true' ? true : undefined;
+  const tags = await tagService.getAllTags(isActive, all);
   res.json({ success: true, tags });
 });
 

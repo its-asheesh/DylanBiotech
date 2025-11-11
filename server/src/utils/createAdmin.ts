@@ -5,6 +5,7 @@ dotenv.config();
 import * as readline from 'readline';
 import connectDB from '../config/db';
 import { UserService } from '../services/UserService';
+import { AdminLevel } from '../types/permissions';
 
 // Create readline interface for user input
 const rl = readline.createInterface({
@@ -119,13 +120,14 @@ const createAdmin = async () => {
       passwordValid = true;
     }
 
-    // Create admin user
+    // Create admin user (as super admin by default)
     console.log('\nCreating admin user...');
     const adminUser = await userService.create({
       name: name.trim(),
       email: email,
       password: password,
       role: 'admin',
+      adminLevel: AdminLevel.SUPER_ADMIN,
     });
 
     console.log('\n✅ Admin user created successfully!');
@@ -133,8 +135,9 @@ const createAdmin = async () => {
     console.log(`   Name: ${adminUser.name}`);
     console.log(`   Email: ${adminUser.email}`);
     console.log(`   Role: ${adminUser.role}`);
+    console.log(`   Admin Level: Super Admin`);
     console.log(`   ID: ${adminUser._id}`);
-    console.log('\n💡 You can now use this account to login as an admin.\n');
+    console.log('\n💡 You can now use this account to login as a super admin.\n');
 
     rl.close();
     process.exit(0);

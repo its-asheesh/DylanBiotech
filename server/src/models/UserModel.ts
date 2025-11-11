@@ -1,18 +1,24 @@
 // src/models/UserModel.ts
 import mongoose, { Schema, Document, Types } from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { AdminLevel, Permission } from '../types/permissions';
 
 export interface IUser extends Document {
   _id: Types.ObjectId;
   name: string;
   email: string;
   password?: string;
-  phone?: string; // ← Add this
+  phone?: string;
   role: 'user' | 'admin';
+  adminLevel?: AdminLevel; // Admin hierarchy level (only for admins)
+  permissions?: Permission[]; // Custom permissions (only for admins)
   isDeleted?: boolean;
   deletedAt?: Date;
   createdAt: Date;
   matchPassword(enteredPassword: string): Promise<boolean>;
+  hasPermission(permission: Permission): boolean;
+  isSuperAdmin(): boolean;
+  isAdmin(): boolean;
 }
 
 const userSchema = new Schema<IUser>({
@@ -20,6 +26,19 @@ const userSchema = new Schema<IUser>({
   email: { type: String, required: false, unique: true },
   password: { type: String, required: false },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  adminLevel: { 
+    type: Number, 
+    enum: [AdminLevel.MODERATOR, AdminLevel.ADMIN, AdminLevel.SUPER_ADMIN],
+    default: null,
+    required: function(this: IUser) {
+      return this.role === 'admin';
+    }
+  },
+  permissions: { 
+    type: [String], 
+    enum: Object.values(Permission),
+    default: []
+  },
   phone: { type: String, unique: true, sparse: true },
   isDeleted: { type: Boolean, default: false },
   deletedAt: { type: Date, default: null },
@@ -47,6 +66,27 @@ userSchema.methods.matchPassword = async function (enteredPassword: string) {
   console.log('🔑 bcrypt.compare result:', isMatch);
 
   return isMatch;
+};
+
+// Check if user has a specific permission
+userSchema.methods.hasPermission = function (permission: Permission): boolean {
+  if (this.role !== 'admin') return false;
+  
+  // Super admin has all permissions
+  if (this.adminLevel === AdminLevel.SUPER_ADMIN) return true;
+  
+  // Check custom permissions
+  return this.permissions && this.permissions.includes(permission);
+};
+
+// Check if user is super admin
+userSchema.methods.isSuperAdmin = function (): boolean {
+  return this.role === 'admin' && this.adminLevel === AdminLevel.SUPER_ADMIN;
+};
+
+// Check if user is any type of admin
+userSchema.methods.isAdmin = function (): boolean {
+  return this.role === 'admin';
 };
 
 export default mongoose.model<IUser>('User', userSchema);

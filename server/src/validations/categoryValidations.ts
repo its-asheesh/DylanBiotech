@@ -107,6 +107,14 @@ export const listCategoriesSchema = {
       .string()
       .transform((val) => val === 'true')
       .optional(),
+    isActive: z
+      .string()
+      .transform((val) => val === 'true')
+      .optional(),
+    all: z
+      .string()
+      .transform((val) => val === 'true')
+      .optional(),
   }),
 };
 

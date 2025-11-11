@@ -1,6 +1,7 @@
 // src/layouts/AdminLayout.tsx
 import { useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import AdminSidebar from '../components/sidebar/AdminSidebar';
 import AdminNavbar, { type Breadcrumb } from '../components/navbar/AdminNavbar';
 import { sidebarConfig } from '../config/navigation';
@@ -13,6 +14,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   const isActive = (href: string) => {
     if (href === '/admin') {
@@ -51,17 +53,27 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         );
       };
 
+  // Filter nav items based on user permissions
+  const isSuperAdmin = user?.adminLevel === 3;
+  const filteredNavItems = sidebarConfig.filter((item) => {
+    if (item.requireSuperAdmin && !isSuperAdmin) {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <div className="flex min-h-screen bg-gray-50 antialiased">
       {/* Sidebar Component */}
       <AdminSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        navItems={sidebarConfig}
-        user={{
-          name: 'Admin User',
-          email: 'admin@dylanbiotech.com',
-        }}
+        navItems={filteredNavItems}
+        user={user ? {
+          name: user.name,
+          email: user.email || '',
+        } : undefined}
+        onLogout={logout}
         collapsed={sidebarCollapsed}
         onToggleCollapse={setSidebarCollapsed}
         onExpandSidebar={() => setSidebarCollapsed(false)}

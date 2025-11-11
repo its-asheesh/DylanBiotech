@@ -25,11 +25,18 @@ export const getProductById = async (id: string): Promise<IProduct> => {
 export const listProducts = async (
   filters: Record<string, any> = {},
   page = 1,
-  limit = 10
+  limit = 10,
+  isAdmin = false // Admin can see all products including inactive
 ) => {
   const skip = (page - 1) * limit;
-  const query: any = { isActive: true };
+  const query: any = {};
 
+  // Only filter by isActive for non-admin users
+  if (!isAdmin) {
+    query.isActive = true;
+  }
+
+  // Category filter
   if (filters.category) {
     query.$or = [
       { mainCategory: filters.category },
@@ -38,14 +45,36 @@ export const listProducts = async (
     delete filters.category;
   }
 
+  // Search functionality - combine with category if both exist
+  if (filters.search) {
+    const searchConditions = [
+      { name: { $regex: filters.search, $options: 'i' } },
+      { brand: { $regex: filters.search, $options: 'i' } },
+      { description: { $regex: filters.search, $options: 'i' } },
+    ];
+
+    if (query.$or) {
+      // If category filter exists, combine with search using $and
+      query.$and = [
+        { $or: query.$or },
+        { $or: searchConditions }
+      ];
+      delete query.$or;
+    } else {
+      query.$or = searchConditions;
+    }
+    delete filters.search;
+  }
+
   Object.assign(query, filters);
 
   const products = await ProductModel.find(query)
-    .populate('mainCategory', 'name')
-    .populate('subCategory', 'name')
-    .populate('tagCategories', 'name color')
+    .populate('mainCategory', 'name slug')
+    .populate('subCategory', 'name slug')
+    .populate('tagCategories', 'name color icon')
     .skip(skip)
     .limit(limit)
+    .sort({ createdAt: -1 })
     .lean();
 
   const total = await ProductModel.countDocuments(query);

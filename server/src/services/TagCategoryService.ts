@@ -7,8 +7,19 @@ export const createTag = async ( data: Partial<ITagCategory>): Promise<ITagCateg
   return await tag.save();
 };
 
-export const getAllTags = async () => {
-  return await TagCategory.find({ isActive: true }).lean();
+export const getAllTags = async (isActive?: boolean, all?: boolean) => {
+  const query: any = {};
+  // If 'all' is true, don't filter by isActive (return all)
+  // Otherwise, if isActive is not provided, default to true (active only) for backward compatibility
+  if (all) {
+    // Don't add isActive filter - return all tags
+  } else if (isActive !== undefined) {
+    query.isActive = isActive;
+  } else {
+    query.isActive = true;
+  }
+
+  return await TagCategory.find(query).sort({ name: 1 }).lean();
 };
 
 export const getTagBySlug = async (slug: string) => {
